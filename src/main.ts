@@ -1,9 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { RabbitMQConsumerService } from './rabbitmq/rabbitmq-consumer.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // RabbitMQ consumers 초기화 (DI를 통해 서비스 가져오기)
+  const rabbitMQService = app.get(RabbitMQConsumerService);
+  await rabbitMQService.initConsumers(app);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -20,4 +25,6 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
+
 bootstrap();
+

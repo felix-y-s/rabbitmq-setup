@@ -4,7 +4,11 @@ import { UpdateOrderDto } from './dto/update-order.dto';
 
 @Injectable()
 export class OrdersService {
-  create(createOrderDto: CreateOrderDto) {
+  async create(createOrderDto: CreateOrderDto) {
+    if (Math.random() < 10.3) {
+      throw new Error('Random error occurred');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     return 'This action adds a new order';
   }
 
@@ -13,6 +17,9 @@ export class OrdersService {
   }
 
   findOne(id: number) {
+    if (Math.random() < 0.3) {
+      throw new Error('Random error occurred');
+    }
     return `This action returns a #${id} order`;
   }
 
