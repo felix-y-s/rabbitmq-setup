@@ -12,6 +12,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { ClientProxy } from '@nestjs/microservices';
+import { v4 as uuid4 } from 'uuid';
 
 @Controller('orders')
 export class OrdersController {
@@ -23,10 +24,15 @@ export class OrdersController {
   @Post()
   async create(@Body() createOrderDto: CreateOrderDto) {
     // 방법 1: emit() - 비동기 이벤트 발행 (응답 없음)
-    this.eventClient.emit('orders.created', createOrderDto).subscribe({
-      next: () => console.log('✅ 이벤트 발행 완료'),
-      error: (err) => console.error('❌ 이벤트 발행 실패:', err),
-    });
+    this.eventClient
+      .emit('orders.created', {
+        orderId: uuid4(),
+        ...createOrderDto,
+      })
+      .subscribe({
+        next: () => console.log('✅ 이벤트 발행 완료'),
+        error: (err) => console.error('❌ 이벤트 발행 실패:', err),
+      });
 
     // 방법 2: send() - 동기 요청/응답 (응답 받기)
     // const response = await this.eventClient

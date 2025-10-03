@@ -3,6 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ClientsModule, RmqOptions, Transport } from '@nestjs/microservices';
 import { RabbitMQConsumerService } from './rabbitmq-consumer.service';
 import { DLQMonitorService } from './dlq-monitor.service';
+import { DLQManagementService } from './dlq-management.service';
+import { DLQController } from './dlq.controller';
 
 @Module({})
 export class RabbitMQModule {
@@ -40,6 +42,7 @@ export class RabbitMQModule {
       ],
       providers: [
         RabbitMQConsumerService,
+        DLQManagementService,
         // DLQMonitorService는 조건부로 추가
         {
           provide: DLQMonitorService,
@@ -51,6 +54,7 @@ export class RabbitMQModule {
           inject: [ConfigService],
         },
       ],
+      controllers: [DLQController],
       exports: [RabbitMQConsumerService],
     };
   }

@@ -165,3 +165,11 @@ rmq-queues        # 큐 목록 확인
 rmq-dlq           # DLQ 메시지 확인
 rmq-purge-dlq     # DLQ 비우기
 ```
+
+GET /dlq/status - DLQ 상태 조회 (메시지 개수, 컨슈머 개수)
+GET /dlq/messages?limit=10 - DLQ 메시지 목록 조회
+GET /dlq/messages/:index - 특정 DLQ 메시지 상세 조회
+POST /dlq/messages/:index/reprocess - 특정 메시지 재처리
+DELETE /dlq/messages/:index - 특정 메시지 삭제
+POST /dlq/reprocess-all - 모든 DLQ 메시지 일괄 재처리
+DELETE /dlq/purge - 모든 DLQ 메시지 삭제
