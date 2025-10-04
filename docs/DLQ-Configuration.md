@@ -9,26 +9,25 @@
 RMQ_URL='amqp://admin:SecurePassword123!@localhost:5672'
 
 # DLQ 모드 설정
-USE_MONITORING_ONLY_DLQ=false  # DLQ 처리 방식 선택
-ENABLE_DLQ_MONITOR=false       # DLQ 모니터링 서비스 활성화
+# auto: DLQ 자동 처리 (consumer 활성화)
+# monitor: 모니터링 전용 (consumer 비활성화 + DLQMonitorService 활성화)
+# off: 모두 비활성화
+DLQ_MODE=monitor
 ```
 
-## 설정 옵션
+## DLQ_MODE 옵션
 
-### 1. USE_MONITORING_ONLY_DLQ
-
-DLQ 메시지를 자동으로 처리할지 여부를 결정합니다.
-
-#### `false` - 자동 처리 모드 (기본값, 개발 환경 권장)
+### `auto` - 자동 처리 모드 (개발 환경 권장)
 
 ```env
-USE_MONITORING_ONLY_DLQ=false
+DLQ_MODE=auto
 ```
 
 **동작 방식**:
-- DLQ 메시지를 자동으로 컨슈밍
+- DLQ 컨슈머 활성화
 - `@EventPattern('dlq.orders')` 핸들러가 즉시 실행
 - 실시간 로깅 및 알림 가능
+- DLQMonitorService 비활성화
 
 **장점**:
 - ✅ 즉각적인 피드백
@@ -41,94 +40,75 @@ USE_MONITORING_ONLY_DLQ=false
 
 **적합한 환경**: 개발, 테스트, 프로토타입
 
-#### `true` - 모니터링 전용 모드 (프로덕션 권장)
+### `monitor` - 모니터링 전용 모드 (프로덕션 권장)
 
 ```env
-USE_MONITORING_ONLY_DLQ=true
+DLQ_MODE=monitor
 ```
 
 **동작 방식**:
-- DLQ 컨슈머가 생성되지 않음
+- DLQ 컨슈머 비활성화
 - 실패한 메시지는 DLQ에 저장만 됨
-- RabbitMQ Management UI나 CLI로 수동 확인
+- DLQMonitorService 활성화 (1분마다 큐 확인)
+- RabbitMQ Management UI나 CLI로 수동 확인 가능
 
 **장점**:
 - ✅ 안전하고 예측 가능
 - ✅ 무한 루프 위험 없음
 - ✅ 메시지 손실 방지
+- ✅ 주기적 모니터링 및 로그 출력
 
 **단점**:
-- ❌ 자동 알림 없음 (별도 모니터링 필요)
 - ❌ 수동 개입 필요
 
 **적합한 환경**: 프로덕션, 스테이징
 
-### 2. ENABLE_DLQ_MONITOR
-
-DLQ 모니터링 서비스 활성화 여부를 결정합니다.
-
-#### `false` - 모니터링 비활성화 (기본값)
+### `off` - 비활성화 모드
 
 ```env
-ENABLE_DLQ_MONITOR=false
+DLQ_MODE=off
 ```
 
 **동작 방식**:
-- DLQMonitorService가 초기화되지 않음
-- Cron 작업 실행 안 됨
+- DLQ 컨슈머 비활성화
+- DLQMonitorService 비활성화
+- DLQ 큐는 여전히 생성되지만 모니터링 없음
 
-#### `true` - 모니터링 활성화
+**적합한 환경**: DLQ 기능이 필요 없는 환경
 
-```env
-ENABLE_DLQ_MONITOR=true
-```
-
-**동작 방식**:
-- DLQMonitorService가 초기화됨
-- 1분마다 DLQ 큐를 확인
-- 메시지 발견 시 로그 출력 (TODO: Slack/Email 알림)
-
-**사용 시나리오**:
-- 모니터링 전용 DLQ 모드에서 알림 필요 시
-- 프로덕션 환경에서 DLQ 상태 추적
-
-## 권장 설정 조합
+## 권장 설정
 
 ### 개발 환경 (Development)
 
 ```env
-USE_MONITORING_ONLY_DLQ=false
-ENABLE_DLQ_MONITOR=false
+DLQ_MODE=auto
 ```
 
-**이유**: 자동 처리로 즉각적인 피드백, 모니터링 서비스는 불필요
+**이유**: 자동 처리로 즉각적인 피드백
 
 ### 테스트 환경 (Testing)
 
 ```env
-USE_MONITORING_ONLY_DLQ=false
-ENABLE_DLQ_MONITOR=true
+DLQ_MODE=auto
 ```
 
-**이유**: 자동 처리 + 주기적 모니터링으로 완벽한 추적
+**이유**: 자동 처리로 완벽한 추적
 
 ### 스테이징 환경 (Staging)
 
 ```env
-USE_MONITORING_ONLY_DLQ=true
-ENABLE_DLQ_MONITOR=true
+DLQ_MODE=monitor
 ```
 
-**이유**: 프로덕션과 동일한 모니터링 전용 모드 + 알림
+**이유**: 프로덕션과 동일한 모니터링 전용 모드
 
 ### 프로덕션 환경 (Production)
 
 ```env
-USE_MONITORING_ONLY_DLQ=true
-ENABLE_DLQ_MONITOR=true
+DLQ_MODE=monitor
 ```
 
-**이유**: 안전한 모니터링 전용 + 알림으로 실패 감지
+**이유**: 안전한 모니터링 전용 + 주기적 알림으로 실패 감지
 
 ## 동작 확인
 
@@ -138,23 +118,118 @@ ENABLE_DLQ_MONITOR=true
 npm run start:dev
 ```
 
-**모니터링 전용 모드 활성화 시**:
+**모니터링 전용 모드 (`monitor`) 활성화 시**:
 ```
-[RabbitMQConsumerService] 📋 DLQ 모드: 모니터링 전용
+[RabbitMQConsumerService] 📋 DLQ 모드: monitor
 [DLQMonitorService] ✅ DLQ 모니터링 서비스 활성화 - 1분마다 확인
 ```
 
-**자동 처리 모드 활성화 시**:
+**자동 처리 모드 (`auto`) 활성화 시**:
 ```
-[RabbitMQConsumerService] 📋 DLQ 모드: 자동 처리
-[DLQMonitorService] ❌ DLQ 모니터링 비활성화 (ENABLE_DLQ_MONITOR=false)
+[RabbitMQConsumerService] 📋 DLQ 모드: auto
 ```
 
-## 수동 DLQ 관리
+## DLQ 수동 관리 API
 
-모니터링 전용 모드에서는 다음 방법으로 DLQ를 관리합니다:
+DLQ 메시지를 수동으로 조회, 재처리, 삭제할 수 있는 REST API를 제공합니다.
 
-### RabbitMQ Management UI
+### API 엔드포인트
+
+#### 1. DLQ 상태 조회
+```bash
+GET http://localhost:3000/dlq/status
+```
+
+**응답 예시**:
+```json
+{
+  "queueName": "dlq_queue",
+  "messageCount": 5,
+  "consumerCount": 0
+}
+```
+
+#### 2. DLQ 메시지 목록 조회
+```bash
+GET http://localhost:3000/dlq/messages?limit=10
+```
+
+**응답 예시**:
+```json
+[
+  {
+    "messageId": "msg-0",
+    "routingKey": "dlq.orders",
+    "payload": {
+      "orderId": "7cafda00-0591-4b86-8dd6-0d9592cd4565",
+      "userId": "test_user",
+      "products": [...]
+    },
+    "headers": { "x-death": [...] },
+    "retryCount": 1,
+    "failureReason": "delivery_limit",
+    "originalQueue": "orders_queue",
+    "timestamp": 1759484540
+  }
+]
+```
+
+#### 3. orderId로 특정 메시지 조회
+```bash
+GET http://localhost:3000/dlq/messages/:orderId
+```
+
+**예시**:
+```bash
+GET http://localhost:3000/dlq/messages/7cafda00-0591-4b86-8dd6-0d9592cd4565
+```
+
+#### 4. orderId로 메시지 재처리
+```bash
+POST http://localhost:3000/dlq/messages/:orderId/reprocess
+```
+
+**동작**: 해당 메시지를 원본 큐(`orders_queue`)로 재발행하고 DLQ에서 제거
+
+**응답**:
+```json
+{
+  "success": true
+}
+```
+
+#### 5. orderId로 메시지 삭제
+```bash
+DELETE http://localhost:3000/dlq/messages/:orderId
+```
+
+**동작**: 해당 메시지를 DLQ에서 영구 삭제
+
+#### 6. 모든 메시지 일괄 재처리
+```bash
+POST http://localhost:3000/dlq/reprocess-all
+```
+
+**응답**:
+```json
+{
+  "reprocessedCount": 5
+}
+```
+
+#### 7. 모든 메시지 삭제 (purge)
+```bash
+DELETE http://localhost:3000/dlq/purge
+```
+
+**응답**:
+```json
+{
+  "deletedCount": 5
+}
+```
+
+## RabbitMQ Management UI 사용
 
 ```
 http://localhost:15672
@@ -166,7 +241,7 @@ Password: SecurePassword123!
 2. **dlq_queue** 선택
 3. **Get messages** 버튼으로 메시지 확인
 
-### CLI 명령어
+## CLI 명령어
 
 ```bash
 # DLQ 메시지 개수 확인
@@ -188,16 +263,16 @@ docker exec rabbitmq-node1 rabbitmqadmin -u admin -p SecurePassword123! \
 
 ### DLQ 핸들러가 호출되지 않음
 
-**증상**: `USE_MONITORING_ONLY_DLQ=false`인데 DLQ 로그가 안 나옴
+**증상**: `DLQ_MODE=auto`인데 DLQ 로그가 안 나옴
 
 **해결**:
 1. 서버 재시작 확인
 2. `.env` 파일 저장 확인
-3. 로그에서 "DLQ 모드: 자동 처리" 확인
+3. 로그에서 "DLQ 모드: auto" 확인
 
 ### DLQ 모니터링이 작동하지 않음
 
-**증상**: `ENABLE_DLQ_MONITOR=true`인데 모니터링 로그가 안 나옴
+**증상**: `DLQ_MODE=monitor`인데 모니터링 로그가 안 나옴
 
 **해결**:
 1. `@nestjs/schedule` 패키지 설치 확인: `npm list @nestjs/schedule`

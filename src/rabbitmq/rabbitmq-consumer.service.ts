@@ -35,14 +35,11 @@ export class RabbitMQConsumerService {
     // - 실시간 알림/로깅 가능
     // - 장점: 즉각적인 피드백
     // - 단점: 패턴 해킹 필요, 확장성 제한
-    const useMonitoringOnlyDlq =
-      this.configService.get('USE_MONITORING_ONLY_DLQ') === 'true';
+    const dlqMode = this.configService.get('DLQ_MODE', 'auto');
 
-    this.logger.log(
-      `📋 DLQ 모드: ${useMonitoringOnlyDlq ? '모니터링 전용' : '자동 처리'}`,
-    );
+    this.logger.log(`📋 DLQ 모드: ${dlqMode}`);
 
-    if (!useMonitoringOnlyDlq) {
+    if (dlqMode === 'auto') {
       // 자동 처리 DLQ 컨슈머
       app.connectMicroservice<MicroserviceOptions>({
         transport: Transport.RMQ,

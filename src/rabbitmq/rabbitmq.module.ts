@@ -43,13 +43,14 @@ export class RabbitMQModule {
       providers: [
         RabbitMQConsumerService,
         DLQManagementService,
-        // DLQMonitorService는 조건부로 추가
+        // DLQMonitorService는 조건부로 추가 (monitor 모드일 때만)
         {
           provide: DLQMonitorService,
           useFactory: (configService: ConfigService) => {
-            const enableMonitor =
-              configService.get('ENABLE_DLQ_MONITOR') === 'true';
-            return enableMonitor ? new DLQMonitorService(configService) : null;
+            const dlqMode = configService.get('DLQ_MODE', 'auto');
+            return dlqMode === 'monitor'
+              ? new DLQMonitorService(configService)
+              : null;
           },
           inject: [ConfigService],
         },
